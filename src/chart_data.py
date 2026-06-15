@@ -30,22 +30,29 @@ FLAT_TIERS = {
 #
 # Sources:
 #  - Max 20x heavy user "consumes equivalent of $600-$1,500/mo for flat $200":
-#    finout.io (Claude Code pricing analysis, 2026).
+#    finout.io Claude Code Pricing 2026.
 #  - Real developer dashboard: $200 Max 20x -> $1,588 API-equiv in one month:
-#    productcompass.pm (pricing dashboard).
+#    productcompass.pm (Claude Code Pricing).
 #  - Pro $20 ~ 6-7M Sonnet input tokens/mo breakeven; Max $100 ~ 33M:
-#    lowcode.agency (pricing analysis).
+#    lowcode.agency Claude Code Pricing.
 #  - Effective subsidies of 12-175x on flat-rate logins (Anthropic's own stated
 #    rationale for the June 15 split): morphllm.com / Anthropic Help Center.
 #
-# We use conservative low-end heavy-user extraction so the chart understates
-# rather than overstates the gap.
+# All three ranges are sourced from Verdent's usage-profile estimates, which map
+# each plan to the API-equivalent monthly cost of a representative usage profile
+# (verdent.ai/guides/claude-code-pricing-2026). Using one consistent source for
+# all three bars rather than mixing. Top end corroborated by cloudzero.com
+# ("over $1,200 for heavy users running Opus on large codebases") and a real
+# developer dashboard observation of $1,588 (productcompass.pm), shown as a marker.
 SUBSIDY = [
     # tier, flat_price, heavy_user_api_equiv_low, heavy_user_api_equiv_high
-    ("Pro\n$20",      20,  120,  500),    # power user, ~6-7M+ tokens, well past breakeven
-    ("Max 5x\n$100",  100, 400,  900),    # 33M+ token-equivalent heavy use
-    ("Max 20x\n$200", 200, 600,  1588),   # finout $600-1500 + observed $1,588 dashboard
+    ("Pro\n$20",      20,  50,   100),   # Verdent: light profile ~$50-100/mo API-equiv
+    ("Max 5x\n$100",  100, 130,  260),   # Verdent: daily-developer profile ~$130-260/mo
+    ("Max 20x\n$200", 200, 400,  1200),  # Verdent: power-user profile ~$400-1,200+/mo
 ]
+# Real-world observed data point (not a range): one developer's dashboard showed a
+# $200 Max 20x plan generating $1,588 of API-equivalent usage in a month. — productcompass.pm
+SUBSIDY_OBSERVED = ("Max 20x\n$200", 1588)
 
 # ---------------------------------------------------------------------------
 # CHART B — Crossover for a single subscriber (COMPUTED, unchanged method)
@@ -60,13 +67,22 @@ CROSSOVER = {
 }
 
 # ---------------------------------------------------------------------------
-# CHART C — Cheaper tokens, bigger bills (SOURCED magnitudes, indexed)
-# Source: 2026 inference-cost analyses; Goldman Sachs Research (60-70%/yr token
-# price decline; 24x consumption growth by 2030); Gartner (90% cheaper inference
-# by 2030, via Fortune). Token price ~280x down over 2yr; enterprise spend ~320% up.
+# CHART C — Cheaper tokens, bigger bills (REAL ENDPOINTS, no invented curve)
+# Drawn as two honest before/after points per series, NOT a smooth interpolation,
+# because no public monthly time-series exists. The four numbers below are real:
+#
+# Token price (GPT-3.5-equivalent inference, per 1M tokens):
+#   $20.00 (Nov 2022) -> $0.07 (Oct 2024) = ~280x drop.
+#   Source: Stanford HAI AI Index 2025 (via searchenginejournal.com, medium.com/@horecny).
+# Enterprise AI budget (average, per year):
+#   $1.2M (2024) -> $7M (2026) = ~5.8x rise.
+#   Source: FinOps Foundation 2026 State of FinOps (via oplexa.com).
+# Headline framing "280x down / 320% up over two years": oplexa.com.
 DIVERGENCE = {
-    "token_price_drop_factor": 280,   # over ~2 years
-    "spend_growth_multiple": 4.2,     # +320% => 4.2x
+    "price_start": 20.00, "price_start_label": "Nov 2022",
+    "price_end":   0.07,  "price_end_label":   "Oct 2024",
+    "spend_start": 1.2,   "spend_start_label": "2024",   # $M/yr
+    "spend_end":   7.0,   "spend_end_label":   "2026",   # $M/yr
 }
 
 # ---------------------------------------------------------------------------
