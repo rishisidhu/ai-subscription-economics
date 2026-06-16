@@ -1,199 +1,248 @@
 """
-Charts for the Medium post on AI subscription economics.
-All figures and their sources live in chart_data.py (auditable).
-Style: clean editorial, consistent palette.
+Charts for the AI subscription economics article.
+All figures live in chart_data.py, each annotated with its source.
+
+Design: Messari/financial-dashboard style. Dark header band with title, subtitle
+and unit; framed, gridded plot; teal for the "in control / what you pay" element,
+coral for the "problem" element (the gap, the loss zone, the rising spend, the
+held anchor). Consistent across all four so they read as one set.
+No source line on the image (sources live in the repo and the article).
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
+import matplotlib.font_manager as fm
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 import chart_data as D
 
-INK, MUTED, GRID = "#1a1a1a", "#6b6b6b", "#e6e6e6"
-ACCENT, COOL, FILL = "#c0392b", "#2c3e50", "#f4d7d2"
-GOLD = "#c79a1e"
+# ---- palette --------------------------------------------------------------
+INK     = "#0f1419"
+PANEL   = "#ffffff"
+HEADER  = "#0d1b1e"
+HEADERTX= "#ffffff"
+SUB     = "#9fb8b4"     # subtitle text on dark header
+UNIT    = "#5f7a76"     # unit label on dark header
+GRID    = "#e2e6ea"
+AXIS    = "#aab2bd"
+TXT     = "#3d4651"
+MUTE    = "#8b95a1"
+TEAL    = "#0f8a7e"     # "in control" / what you pay
+TEALD   = "#0a5f57"     # darker teal for teal text labels
+CORAL   = "#e0654f"     # "the problem" / extract / loss / rise
+CORALD  = "#b03f2c"     # darker coral for coral text labels
+CORAL_F = "#f6d8d1"     # coral fill, light (loss zones)
+
+def _pick(*names):
+    avail = {f.name for f in fm.fontManager.ttflist}
+    for n in names:
+        if n in avail:
+            return n
+    return "DejaVu Sans"
+DISPLAY = _pick("Helvetica Neue", "Helvetica", "Arial", "DejaVu Sans")
 
 plt.rcParams.update({
-    "font.family": "DejaVu Sans", "font.size": 12,
-    "axes.edgecolor": MUTED, "axes.linewidth": 0.8,
-    "axes.titlesize": 14, "axes.titleweight": "bold", "figure.dpi": 150,
+    "font.family": DISPLAY, "font.size": 13,
+    "figure.dpi": 200, "savefig.dpi": 200,
+    "text.parse_math": False,
 })
 
-def style(ax):
+# ---- shared scaffolding ---------------------------------------------------
+def _frame(title, subtitle, unit, figsize=(9, 5.8),
+           plot_rect=(0.10, 0.13, 0.86, 0.68)):
+    """Build figure with a dark header band and a framed plot axis."""
+    fig = plt.figure(figsize=figsize)
+    fig.patch.set_facecolor(PANEL)
+    hax = fig.add_axes([0, 0.88, 1, 0.12]); hax.axis("off")
+    hax.add_patch(plt.Rectangle((0, 0), 1, 1, transform=hax.transAxes,
+                                color=HEADER, zorder=0))
+    hax.text(0.018, 0.62, title.upper(), transform=hax.transAxes, ha="left",
+             va="center", color=HEADERTX, fontsize=15, fontweight="bold",
+             family=DISPLAY)
+    hax.text(0.018, 0.24, subtitle, transform=hax.transAxes, ha="left",
+             va="center", color=SUB, fontsize=10.5)
+    if unit:
+        hax.text(0.982, 0.5, unit, transform=hax.transAxes, ha="right",
+                 va="center", color=UNIT, fontsize=9, fontweight="bold")
+    ax = fig.add_axes(list(plot_rect)); ax.set_facecolor(PANEL)
+    ax.set_axisbelow(True)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
-    ax.tick_params(colors=MUTED, length=0)
-    ax.grid(True, color=GRID, linewidth=0.8, zorder=0)
-    ax.set_axisbelow(True)
+    ax.spines["left"].set_color(AXIS); ax.spines["bottom"].set_color(AXIS)
+    ax.tick_params(colors=TXT, length=0, labelsize=10.5)
+    return fig, ax, hax
 
-def money(v, _):
-    return f"${int(v):,}"
+def _legend(ax, items, y=-0.17):
+    """items: list of (color, label). Draws rectangle chips (font-independent)."""
+    from matplotlib.patches import Rectangle
+    x = 0.0
+    chip_w, chip_h = 0.018, 0.030
+    for color, label in items:
+        ax.add_patch(Rectangle((x, y - chip_h/2), chip_w, chip_h,
+                               transform=ax.transAxes, color=color,
+                               clip_on=False, zorder=6))
+        ax.text(x + chip_w + 0.008, y, label, color=TXT, transform=ax.transAxes,
+                fontsize=10, va="center")
+        x += chip_w + 0.008 + 0.0125 * len(label) + 0.03
+
+def _save(fig, path):
+    fig.savefig(path, bbox_inches="tight", facecolor=PANEL, pad_inches=0.25)
+    plt.close(fig)
 
 # ===========================================================================
-# CHART A (CENTERPIECE) — flat price vs API-equivalent value a heavy user extracts
+# CHART A — the subsidy (paired bars: pay vs extract)
 # ===========================================================================
 def chart_subsidy():
-    fig, ax = plt.subplots(figsize=(9, 5.4))
-    style(ax)
-
-    tiers = [t[0] for t in D.SUBSIDY]
+    fig, ax, _ = _frame("What you pay vs what you can take",
+                        "Flat monthly fee against the API-equivalent value a heavy user can pull through each plan",
+                        "USD / MONTH")
+    tiers = [t[0].split("\n")[0] for t in D.SUBSIDY]
     flat  = [t[1] for t in D.SUBSIDY]
     low   = [t[2] for t in D.SUBSIDY]
     high  = [t[3] for t in D.SUBSIDY]
+    y = np.arange(len(tiers))[::-1]
+    bh = 0.34
+    ax.xaxis.grid(True, color=GRID, lw=1)
 
-    x = np.arange(len(tiers))
-    w = 0.38
+    for yi, f, l, h in zip(y, flat, low, high):
+        ax.barh(yi + bh*0.55, f, height=bh, color=TEAL, zorder=4)
+        ax.barh(yi - bh*0.55, h, height=bh, color=CORAL, zorder=3)
+        ax.plot([l, l], [yi - bh*0.55 - bh/2, yi - bh*0.55 + bh/2],
+                color="#ffffff", lw=1.6, zorder=5)
+    for yi, f, l, h in zip(y, flat, low, high):
+        ax.text(f + 14, yi + bh*0.55, f"${f}", va="center", ha="left",
+                color=TEALD, fontsize=10.5, fontweight="bold", zorder=6)
+        ax.text(h + 14, yi - bh*0.55, f"${l:,}–${h:,}", va="center", ha="left",
+                color=CORALD, fontsize=10.5, fontweight="bold", zorder=6)
 
-    # flat price paid
-    ax.bar(x - w/2, flat, w, color=COOL, zorder=5, label="Flat price paid")
-
-    # API-equivalent value extracted (range bar: low to high)
-    heights = [h - l for l, h in zip(low, high)]
-    ax.bar(x + w/2, high, w, color=FILL, zorder=4,
-           label="API-equivalent value a heavy user can extract")
-    ax.bar(x + w/2, low, w, color=ACCENT, zorder=5)
-
-    # annotate the extract bars with the range
-    for xi, l, h in zip(x, low, high):
-        ax.annotate(f"${l:,}–\n${h:,}", (xi + w/2, h), xytext=(0, 6),
-                    textcoords="offset points", ha="center", va="bottom",
-                    color=ACCENT, fontsize=9.5, fontweight="bold")
-    for xi, f in zip(x, flat):
-        ax.annotate(f"${f}", (xi - w/2, f), xytext=(0, 6),
-                    textcoords="offset points", ha="center", va="bottom",
-                    color=COOL, fontsize=10, fontweight="bold")
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(tiers, fontsize=11, color=INK)
-    ax.set_ylabel("Dollars per month")
-    ax.yaxis.set_major_formatter(FuncFormatter(money))
-    ax.set_ylim(0, 1750)
-    ax.set_title("What you pay vs what a heavy user can pull out", pad=30)
-    ax.legend(loc="upper left", frameon=False, fontsize=10,
-              bbox_to_anchor=(0, 1.10))
-
-    fig.text(0.5, 0.005,
-             "Anthropic tiers, June 2026. Flat fee vs the API-rate value a heavy user can consume "
-             "before throttling. Sources: finout.io, productcompass.pm, lowcode.agency.",
-             ha="center", color=MUTED, fontsize=8.5)
-    fig.tight_layout(rect=(0, 0.035, 1, 1))
-    fig.savefig("charts/chartA_subsidy.png", bbox_inches="tight", facecolor="white")
-    plt.close(fig)
+    ax.set_yticks(y); ax.set_yticklabels(tiers, fontsize=12.5, color=INK, fontweight="bold")
+    ax.set_xlim(0, 1500); ax.xaxis.set_major_locator(MultipleLocator(250))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"${int(v):,}"))
+    ax.margins(y=0.18)
+    _legend(ax, [(TEAL, "what you pay"),
+                 (CORAL, "value a heavy user can extract (range)")])
+    _save(fig, "charts/chartA_subsidy.png")
 
 # ===========================================================================
 # CHART B — single-subscriber crossover (computed)
 # ===========================================================================
 def chart_crossover():
     c = D.CROSSOVER
-    cost_per_task = (c["in_tokens_per_task"]*c["in_rate_per_token"]
-                     + c["out_tokens_per_task"]*c["out_rate_per_token"])
+    cpt = (c["in_tokens_per_task"]*c["in_rate_per_token"]
+           + c["out_tokens_per_task"]*c["out_rate_per_token"])
     REV = c["flat_revenue"]
-    breakeven = REV / cost_per_task
+    be = REV / cpt
+    x = np.linspace(0, 3000, 240)
+    cost = x * cpt
 
-    tasks = np.linspace(0, 3000, 200)
-    cost = tasks * cost_per_task
+    fig, ax, _ = _frame("Where a flat subscriber turns unprofitable",
+                        "Computed from published Sonnet API rates: cost rises with use, the $20 fee does not",
+                        "USD / MONTH")
+    ax.grid(True, color=GRID, lw=1)
 
-    fig, ax = plt.subplots(figsize=(9, 5.2))
-    style(ax)
-    ax.axhline(REV, color=COOL, linewidth=2.4, zorder=5)
-    ax.annotate(f"flat revenue  ${int(REV)}/mo", xy=(120, REV),
-                xytext=(120, REV + 2.5), color=COOL, fontsize=10.5)
-    ax.plot(tasks, cost, color=ACCENT, linewidth=2.6, zorder=6)
-    ax.annotate("cost to serve\n(computed from API rates)",
-                xy=(2650, cost[-1]*0.88), color=ACCENT, fontsize=10.5,
-                ha="right", va="center")
-    mask = tasks >= breakeven
-    ax.fill_between(tasks[mask], REV, cost[mask], color=FILL, zorder=2)
-    ax.axvline(breakeven, color=MUTED, linewidth=1, linestyle=(0, (4, 4)), zorder=4)
-    ax.annotate(f"break-even\n≈ {int(round(breakeven, -1)):,} interactions/mo",
-                xy=(breakeven, 33), xytext=(breakeven - 90, 38),
-                ha="right", color=INK, fontsize=10,
-                arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.8))
-    ax.annotate("provider profits", xy=(breakeven*0.42, 6.5), color=COOL,
-                fontsize=10.5, ha="center")
-    ax.annotate("provider loses money", xy=(breakeven + (3000-breakeven)/2, 6.5),
-                color=ACCENT, fontsize=10.5, ha="center")
-    ax.annotate("agents live\nout here →", xy=(2750, 19), color=ACCENT,
-                fontsize=10, ha="center", style="italic")
+    m = x >= be
+    ax.fill_between(x[m], REV, cost[m], color=CORAL_F, zorder=1)
+    ax.axhline(REV, color=TEAL, lw=2.4, zorder=4)
+    ax.plot(x, cost, color=INK, lw=2.8, zorder=5)
+    ax.axvline(be, color=MUTE, lw=1, ls=(0, (3, 3)), zorder=3)
+
+    ax.annotate(f"break-even ≈ {int(round(be,-1)):,} interactions",
+                xy=(be, REV), xytext=(be+70, 7.5), fontsize=10.5, color=INK,
+                arrowprops=dict(arrowstyle="-", color=MUTE, lw=1))
+    ax.text(70, REV+1.6, "flat revenue  $20", fontsize=11, color=TEALD)
+    ax.text(2950, cost[-1]*0.80, "cost to serve", ha="right", fontsize=12,
+            color=INK)
+    ax.text(2150, REV + (cost[-1]-REV)*0.18, "every interaction past\nbreak-even loses money",
+            fontsize=11, color=CORALD, ha="center")
+
     ax.set_xlim(0, 3000); ax.set_ylim(0, 46)
-    ax.set_xlabel("Model interactions per month  (chat messages, or agent steps)")
-    ax.set_ylabel("Dollars per month")
+    ax.xaxis.set_major_locator(MultipleLocator(500))
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{int(v):,}"))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"${int(v)}"))
-    ax.set_title("Where a flat subscriber turns unprofitable", pad=14)
-    fig.text(0.5, 0.005,
-             "Computed from published Claude Sonnet 4.6 API rates ($3/$15 per 1M tokens, June 2026) "
-             "at ~1,500 in / ~700 out tokens per interaction.",
-             ha="center", color=MUTED, fontsize=9)
-    fig.tight_layout(rect=(0, 0.03, 1, 1))
-    fig.savefig("charts/chartB_crossover.png", bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return cost_per_task, breakeven
+    ax.set_xlabel("Model interactions per month (chat messages, or agent steps)",
+                  fontsize=10.5, color=TXT)
+    _save(fig, "charts/chartB_crossover.png")
+    return cpt, be
 
 # ===========================================================================
-# CHART C — cheaper tokens, bigger bills (sourced magnitudes, indexed)
+# CHART C — cheaper tokens, bigger bills (real endpoints, two panels)
 # ===========================================================================
 def chart_divergence():
-    fig, ax1 = plt.subplots(figsize=(9, 5.2))
-    style(ax1)
-    x = np.linspace(0, 24, 100)
-    price = 100 * (1/D.DIVERGENCE["token_price_drop_factor"]) ** (x / 24)
-    spend = 100 * (D.DIVERGENCE["spend_growth_multiple"]) ** (x / 24)
-    ax2 = ax1.twinx()
-    ax1.plot(x, price, color=COOL, linewidth=2.6, zorder=5)
-    ax2.plot(x, spend, color=ACCENT, linewidth=2.6, zorder=5)
-    ax1.set_yscale("log")
-    ax1.set_ylabel("Price per token  (indexed, log scale)", color=COOL)
-    ax2.set_ylabel("Total spend  (indexed)", color=ACCENT)
-    ax1.tick_params(axis="y", colors=COOL); ax2.tick_params(axis="y", colors=ACCENT)
-    ax2.spines["top"].set_visible(False)
-    ax1.set_xticks([0, 6, 12, 18, 24]); ax1.set_xticklabels(["2024","","2025","","2026"])
-    ax1.annotate("price per token\n≈ 280x cheaper", xy=(24, price[-1]),
-                 xytext=(15.5, price[-1]*6), color=COOL, fontsize=11, ha="left",
-                 va="center", arrowprops=dict(arrowstyle="-", color=COOL, lw=0.8))
-    ax2.annotate("total spend\n≈ 320% higher", xy=(21, spend[int(len(spend)*21/24)]),
-                 xytext=(8.5, spend[-1]*0.74), color=ACCENT, fontsize=11, ha="left",
-                 va="center", arrowprops=dict(arrowstyle="-", color=ACCENT, lw=0.8))
-    ax1.set_title("Cheaper tokens, bigger bills", pad=14)
-    fig.text(0.5, 0.005,
-             "Two years: price per token fell ~280x, total enterprise AI spend rose ~320%.  "
-             "Sources: 2026 inference-cost analyses; Goldman Sachs Research.",
-             ha="center", color=MUTED, fontsize=9)
-    fig.tight_layout(rect=(0, 0.03, 1, 1))
-    fig.savefig("charts/chartC_divergence.png", bbox_inches="tight", facecolor="white")
-    plt.close(fig)
+    d = D.DIVERGENCE
+    fig = plt.figure(figsize=(9, 5.6)); fig.patch.set_facecolor(PANEL)
+    hax = fig.add_axes([0, 0.88, 1, 0.12]); hax.axis("off")
+    hax.add_patch(plt.Rectangle((0,0),1,1, transform=hax.transAxes, color=HEADER, zorder=0))
+    hax.text(0.018, 0.62, "CHEAPER TOKENS, BIGGER BILLS", transform=hax.transAxes,
+             ha="left", va="center", color=HEADERTX, fontsize=15, fontweight="bold", family=DISPLAY)
+    hax.text(0.018, 0.24, "Unit price fell sharply while total spend rose, over the same two years",
+             transform=hax.transAxes, ha="left", va="center", color=SUB, fontsize=10.5)
+
+    axL = fig.add_axes([0.08, 0.18, 0.38, 0.60])
+    axR = fig.add_axes([0.58, 0.18, 0.38, 0.60])
+    for ax in (axL, axR):
+        ax.set_facecolor(PANEL); ax.set_axisbelow(True)
+        ax.grid(True, color=GRID, lw=1)
+        for s in ("top", "right"): ax.spines[s].set_visible(False)
+        ax.spines["left"].set_color(AXIS); ax.spines["bottom"].set_color(AXIS)
+        ax.tick_params(colors=TXT, length=0, labelsize=10.5)
+        ax.set_xticks([0, 1]); ax.set_xlim(-0.35, 1.35)
+
+    # left: price collapse (teal = the falling/"good" curve)
+    axL.plot([0,1], [d["price_start"], d["price_end"]], color=TEAL, lw=3,
+             marker="o", markersize=9, zorder=5)
+    axL.set_xticklabels([d["price_start_label"], d["price_end_label"]], color=TXT)
+    axL.annotate(f"${d['price_start']:.2f}", (0, d["price_start"]), xytext=(0,12),
+                 textcoords="offset points", ha="center", fontsize=12, fontweight="bold", color=INK)
+    axL.annotate(f"${d['price_end']:.2f}", (1, d["price_end"]), xytext=(0,16),
+                 textcoords="offset points", ha="center", fontsize=12, fontweight="bold", color=INK)
+    axL.set_ylim(-2, d["price_start"]*1.2)
+    axL.text(0.78, 0.62, "≈ 280×\ncheaper", transform=axL.transAxes, ha="center",
+             va="center", fontsize=13, color=MUTE, fontweight="bold")
+    axL.set_title("Price per 1M tokens (GPT-3.5-class)", fontsize=11, color=TXT, pad=24)
+
+    # right: spend rise (coral = the rising/"problem" curve)
+    axR.plot([0,1], [d["spend_start"], d["spend_end"]], color=CORAL, lw=3,
+             marker="o", markersize=9, zorder=5)
+    axR.set_xticklabels([d["spend_start_label"], d["spend_end_label"]], color=TXT)
+    axR.annotate(f"${d['spend_start']:.1f}M", (0, d["spend_start"]), xytext=(-4,16),
+                 textcoords="offset points", ha="right", fontsize=12, fontweight="bold", color=INK)
+    axR.annotate(f"${d['spend_end']:.0f}M", (1, d["spend_end"]), xytext=(0,12),
+                 textcoords="offset points", ha="center", fontsize=12, fontweight="bold", color=INK)
+    axR.set_ylim(0, d["spend_end"]*1.2)
+    axR.text(0.22, 0.68, "≈ 6×\nhigher", transform=axR.transAxes, ha="center",
+             va="center", fontsize=13, color=MUTE, fontweight="bold")
+    axR.set_title("Avg enterprise AI budget per year", fontsize=11, color=TXT, pad=24)
+
+    _save(fig, "charts/chartC_divergence.png")
 
 # ===========================================================================
-# CHART D — the pricing ladder (refreshed)
+# CHART D — the pricing ladder, three providers
 # ===========================================================================
 def chart_ladder():
-    fig, ax = plt.subplots(figsize=(9, 5.2))
-    style(ax)
+    fig, ax, _ = _frame("Same ladder, three providers",
+                        "A held $20 on-ramp, mid-rungs added for price discrimination, a metered pool above",
+                        "USD / MONTH")
+    ax.yaxis.grid(True, color=GRID, lw=1)
     providers = list(D.FLAT_TIERS.keys())
-    colors = [COOL, ACCENT, "#27708a"]
     xpos = list(range(len(providers)))
-    for xi, p, c in zip(xpos, providers, colors):
+    for xi, p in zip(xpos, providers):
         items = list(D.FLAT_TIERS[p].items())
-        for label, price in items:
-            ax.scatter([xi], [price], s=70, color=c, zorder=5)
-            ax.annotate(f"{label}  ${price}", (xi, price), xytext=(12, 0),
-                        textcoords="offset points", va="center", fontsize=9.5, color=INK)
         ys = [v for _, v in items]
-        ax.plot([xi]*len(ys), ys, color=c, linewidth=1.2, alpha=0.4, zorder=3)
-    ax.axhspan(18, 22, color="#fff3b0", alpha=0.6, zorder=1)
-    ax.annotate("the $20 on-ramp, held steady", xy=(2.55, 20), fontsize=9.5,
-                color="#8a6d00", va="center")
-    ax.set_xlim(-0.4, 3.3); ax.set_ylim(-15, 230)
-    ax.set_xticks(xpos); ax.set_xticklabels(providers, color=INK, fontsize=12)
-    ax.set_ylabel("Monthly price (USD)")
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"${int(v)}" if v >= 0 else ""))
-    ax.set_title("Same ladder, three providers", pad=14)
-    fig.text(0.5, 0.005,
-             r"Consumer plan tiers, June 2026. A held \$20 anchor, added mid-rungs, every ladder "
-             r"ending at a metered API pool above \$200.  Sources: OpenAI, Anthropic, Google.",
-             ha="center", color=MUTED, fontsize=8.5)
-    fig.tight_layout(rect=(0, 0.03, 1, 1))
-    fig.savefig("charts/chartD_ladder.png", bbox_inches="tight", facecolor="white")
-    plt.close(fig)
+        ax.plot([xi]*len(ys), ys, color="#cdd4db", lw=2.5, zorder=2)
+        for label, price in items:
+            ax.scatter([xi], [price], s=64, color=INK, zorder=5)
+            ax.annotate(f"{label}  ${price}", (xi, price), xytext=(13, 7),
+                        textcoords="offset points", va="center", fontsize=10.5, color=TXT)
+    # anchor line: draw only across the dot columns, not through the right-side labels
+    ax.plot([-0.4, len(providers)-1 + 0.02], [20, 20], color=CORAL, lw=2,
+            alpha=0.85, zorder=1)
+    ax.annotate("the $20 anchor, held for 3 years", xy=(len(providers)-1, 33),
+                xytext=(0, 0), textcoords="offset points", fontsize=10.5,
+                color=CORALD, ha="center", fontweight="bold")
+
+    ax.set_xlim(-0.4, len(providers)-0.05); ax.set_ylim(-15, 235)
+    ax.set_xticks(xpos); ax.set_xticklabels(providers, fontsize=12.5, color=INK, fontweight="bold")
+    ax.set_yticks([0, 50, 100, 150, 200])
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"${int(v)}"))
+    _save(fig, "charts/chartD_ladder.png")
 
 if __name__ == "__main__":
     chart_subsidy()
