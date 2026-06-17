@@ -114,7 +114,7 @@ def chart_subsidy():
                 color=CORALD, fontsize=10.5, fontweight="bold", zorder=6)
 
     ax.set_yticks(y); ax.set_yticklabels(tiers, fontsize=12.5, color=INK, fontweight="bold")
-    ax.set_xlim(0, 1500); ax.xaxis.set_major_locator(MultipleLocator(250))
+    ax.set_xlim(0, 2600); ax.xaxis.set_major_locator(MultipleLocator(500))
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"${int(v):,}"))
     ax.margins(y=0.18)
     _legend(ax, [(TEAL, "what you pay"),

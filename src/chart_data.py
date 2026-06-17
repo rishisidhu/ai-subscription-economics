@@ -37,21 +37,42 @@ FLAT_TIERS = {
 #    lowcode.agency Claude Code Pricing.
 #  - Effective subsidies of 12-175x on flat-rate logins (Anthropic's own stated
 #    rationale for the June 15 split): morphllm.com / Anthropic Help Center.
+# ---------------------------------------------------------------------------
+# CHART A — "What you pay vs what you can take"
+# Extraction ranges DERIVED from Anthropic's own published figures (no third party).
+# Full method in src/extraction_model.py; summary here.
 #
-# All three ranges are sourced from Verdent's usage-profile estimates, which map
-# each plan to the API-equivalent monthly cost of a representative usage profile
-# (verdent.ai/guides/claude-code-pricing-2026). Using one consistent source for
-# all three bars rather than mixing. Top end corroborated by cloudzero.com
-# ("over $1,200 for heavy users running Opus on large codebases") and a real
-# developer dashboard observation of $1,588 (productcompass.pm), shown as a marker.
+# PRIMARY SOURCES
+#   Per-window message limits — Anthropic Help Center (support.anthropic.com/.../11014257):
+#     Pro ~45 msg / 5h window;  Max 5x "at least 225 / 5h";  Max 20x "at least 900 / 5h".
+#     Session window resets every 5 hours.
+#   Rates + caching — Anthropic pricing (platform.claude.com/docs/en/about-claude/pricing):
+#     Sonnet 4.6 $3/$15 per MTok (band low);  Opus 4.8 $5/$25 (band high);
+#     cache read 0.1x input;  5-min cache write 1.25x input.
+#
+# REASONED ASSUMPTIONS (deliberately moderate; stated so they can be challenged)
+#   Cadence: 2 fully-used 5h windows/day x 22 working days = 44 windows/month.
+#            (Below the theoretical 4-5 windows/day ceiling; a committed daily pro, not 24/7.)
+#   Per agent turn, WITH prompt caching (how heavy agent users actually run):
+#     12,000 cached-context tokens replayed at 0.1x  + 1,500 fresh input at full price
+#     + 1,500 cache-write at 1.25x  + 1,200 output at full price.
+#   Band = Sonnet rates (low) to Opus rates (high).
+#
+# COMPUTED -> DISPLAYED (display values rounded DOWN on both ends, never above the model,
+# so the shown subsidy is conservative):
+#   Pro      computed $63-105   -> displayed $60-100     (~5x the $20 fee)
+#   Max 5x   computed $314-523  -> displayed $300-500    (~5x the $100 fee)
+#   Max 20x  computed $1,256-2,094 -> displayed $1,250-2,000 (~6-10x the $200 fee)
 SUBSIDY = [
     # tier, flat_price, heavy_user_api_equiv_low, heavy_user_api_equiv_high
-    ("Pro\n$20",      20,  50,   100),   # Verdent: light profile ~$50-100/mo API-equiv
-    ("Max 5x\n$100",  100, 130,  260),   # Verdent: daily-developer profile ~$130-260/mo
-    ("Max 20x\n$200", 200, 400,  1200),  # Verdent: power-user profile ~$400-1,200+/mo
+    ("Pro\n$20",      20,  60,   100),
+    ("Max 5x\n$100",  100, 300,  500),
+    ("Max 20x\n$200", 200, 1250, 2000),
 ]
-# Real-world observed data point (not a range): one developer's dashboard showed a
-# $200 Max 20x plan generating $1,588 of API-equivalent usage in a month. — productcompass.pm
+# Real-world validation point (not part of the model): a developer's published dashboard
+# logged $1,588 of API-equivalent usage in one month on a $200 Max 20x plan
+# (Pawel Huryn, productcompass.pm). It sits INSIDE our independently-derived Max 20x band,
+# which is why we keep it as a corroborating marker rather than an anchor.
 SUBSIDY_OBSERVED = ("Max 20x\n$200", 1588)
 
 # ---------------------------------------------------------------------------
