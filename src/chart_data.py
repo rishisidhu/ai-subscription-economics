@@ -14,13 +14,23 @@ API_RATES = {
 }
 
 # ---------------------------------------------------------------------------
-# CONSUMER / DEVELOPER FLAT TIERS (USD per month), June 2026
-# Source: OpenAI, Anthropic, Google pricing pages + coverage (fritz.ai,
-#         techjacksolutions.com, usagebox.com).
+# CONSUMER FLAT TIERS (USD per month), verified June 2026 against providers' pages.
+# Main ladder uses four rungs; the $8 budget tiers are shown in a zoomed inset.
+# Sources: OpenAI (fritz.ai, cloudzero.com — Free $0, Go $8, Plus $20, Pro $100 [Apr 9 2026],
+#   Pro $200); Anthropic (claude.com/pricing — Free $0, Pro $20, Max 5x $100, Max 20x $200;
+#   NO sub-$20 paid tier); Google (blog.google, gemini.google/subscriptions — Free $0,
+#   AI Plus $8, AI Pro $20, AI Ultra $100 [5x], AI Ultra $200 [20x, cut from $250 at I/O 2026]).
+# Note: OpenAI labels both $100 and $200 tiers "Pro"; Google labels both "AI Ultra".
 FLAT_TIERS = {
-    "OpenAI":    {"Free/Go": 8,  "Plus": 20, "Pro": 100, "Pro max": 200},
-    "Anthropic": {"Free": 0,     "Pro": 20,  "Max 5x": 100, "Max 20x": 200},
-    "Google":    {"Free": 0,     "AI Pro": 20, "Ultra 5x": 100, "Ultra": 200},
+    "OpenAI":    {"Free": 0, "Plus": 20,   "Pro": 100,      "Pro ": 200},
+    "Anthropic": {"Free": 0, "Pro": 20,    "Max 5x": 100,   "Max 20x": 200},
+    "Google":    {"Free": 0, "AI Pro": 20, "AI Ultra": 100, "AI Ultra ": 200},
+}
+# Budget sub-tiers for the zoomed inset (Anthropic intentionally has none).
+BUDGET_TIERS = {
+    "OpenAI":    {"Free": 0, "Go": 8,      "Plus": 20},
+    "Anthropic": {"Free": 0,               "Pro": 20},
+    "Google":    {"Free": 0, "AI Plus": 8, "AI Pro": 20},
 }
 
 # ---------------------------------------------------------------------------
