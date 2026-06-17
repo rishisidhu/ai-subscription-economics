@@ -219,9 +219,21 @@ def chart_divergence():
 # CHART D — the pricing ladder, three providers
 # ===========================================================================
 def chart_ladder():
-    fig, ax, _ = _frame("Same ladder, three providers",
-                        "A held $20 on-ramp, mid-rungs added for price discrimination, a metered pool above",
-                        "USD / MONTH")
+    fig = plt.figure(figsize=(13, 7.2), facecolor=PANEL)
+    gs = fig.add_gridspec(2, 2, width_ratios=[3, 1], height_ratios=[1, 1.1],
+                          wspace=0.30, hspace=0.05,
+                          left=0.07, right=0.97, top=0.80, bottom=0.10)
+    # header band
+    hax = fig.add_axes([0, 0.86, 1, 0.14]); hax.axis("off")
+    hax.add_patch(plt.Rectangle((0,0),1,1, transform=hax.transAxes, color=INK, zorder=0))
+    hax.text(0.018, 0.60, "SAME LADDER, THREE PROVIDERS", transform=hax.transAxes,
+             ha="left", va="center", color="#ffffff", fontsize=19, fontweight="bold")
+    hax.text(0.018, 0.22, "A held $20 on-ramp, mid-rungs for price discrimination, a metered pool above",
+             transform=hax.transAxes, ha="left", va="center", color=SUB, fontsize=10.5)
+    hax.text(0.985, 0.5, "USD / MONTH", transform=hax.transAxes, ha="right", va="center",
+             color="#5f7a76", fontsize=10.5, fontweight="bold")
+
+    ax = fig.add_subplot(gs[:, 0])   # main chart spans both rows on the left
     ax.yaxis.grid(True, color=GRID, lw=1)
     providers = list(D.FLAT_TIERS.keys())
     xpos = list(range(len(providers)))
@@ -231,20 +243,54 @@ def chart_ladder():
         ax.plot([xi]*len(ys), ys, color="#cdd4db", lw=2.5, zorder=2)
         for label, price in items:
             ax.scatter([xi], [price], s=64, color=INK, zorder=5)
-            ax.annotate(f"{label}  ${price}", (xi, price), xytext=(13, 7),
+            ax.annotate(f"{label.strip()}  ${price}", (xi, price), xytext=(13, 7),
                         textcoords="offset points", va="center", fontsize=10.5, color=TXT)
-    # anchor line: draw only across the dot columns, not through the right-side labels
-    ax.plot([-0.4, len(providers)-1 + 0.02], [20, 20], color=CORAL, lw=2,
-            alpha=0.85, zorder=1)
+    ax.plot([-0.4, len(providers)-1 + 0.02], [20, 20], color=CORAL, lw=2, alpha=0.85, zorder=1)
     ax.annotate("the $20 anchor, held for 3 years", xy=(len(providers)-1, 33),
                 xytext=(0, 0), textcoords="offset points", fontsize=10.5,
                 color=CORALD, ha="center", fontweight="bold")
-
     ax.set_xlim(-0.4, len(providers)-0.05); ax.set_ylim(-15, 235)
     ax.set_xticks(xpos); ax.set_xticklabels(providers, fontsize=12.5, color=INK, fontweight="bold")
     ax.set_yticks([0, 50, 100, 150, 200])
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"${int(v)}"))
-    _save(fig, "charts/chartD_ladder.png")
+    for s in ["top","right"]: ax.spines[s].set_visible(False)
+
+    # --- side panel: zoom on the $0-$20 band (top-right cell only = shorter) --
+    azx = fig.add_subplot(gs[0, 1])
+    azx.set_facecolor("#f7f9fa")
+    bp = list(D.BUDGET_TIERS.keys())
+    for xi, p in enumerate(bp):
+        items = list(D.BUDGET_TIERS[p].items())
+        ys = [v for _, v in items]
+        azx.plot([xi]*len(ys), ys, color="#cdd4db", lw=2, zorder=2)
+        for label, price in items:
+            azx.scatter([xi], [price], s=40, color=INK, zorder=5)
+            yoff = 7 if price == 8 else 0       # lift the $8 label off the dashed line
+            azx.annotate(f"{label.strip()} ${price}", (xi, price), xytext=(7, yoff),
+                         textcoords="offset points", va="center", fontsize=8.5, color=TXT)
+    azx.axhline(8, color=MUTE, lw=0.8, ls=(0,(2,2)), zorder=1)
+    azx.set_xlim(-0.4, len(bp)+0.15); azx.set_ylim(-4, 26)
+    azx.set_xticks(range(len(bp))); azx.set_xticklabels(bp, fontsize=8.5, color=INK)
+    azx.set_yticks([0, 8, 20]); azx.yaxis.set_major_formatter(FuncFormatter(lambda v,_: f"${int(v)}"))
+    azx.tick_params(labelsize=8, length=0)
+    azx.set_title("zoom: the $0–$20 band\nonly OpenAI & Google add an $8 tier",
+                  fontsize=9, color=TXT, pad=6)
+
+    # --- connector lines: main chart's $0-$20 band -> zoom panel corners -----
+    fig.canvas.draw()
+    xr = len(providers) - 0.05            # main axis right limit
+    p_lo_main = ax.transData.transform((xr, 0))    # main chart, $0
+    p_hi_main = ax.transData.transform((xr, 20))   # main chart, $20
+    z_lo = azx.transData.transform((-0.4, -4))     # panel bottom-left
+    z_hi = azx.transData.transform((-0.4, 26))     # panel top-left
+    inv = fig.transFigure.inverted()
+    for pm, pz in [(p_lo_main, z_lo), (p_hi_main, z_hi)]:
+        x0, y0 = inv.transform(pm); x1, y1 = inv.transform(pz)
+        fig.add_artist(plt.Line2D([x0, x1], [y0, y1], transform=fig.transFigure,
+                                  color=MUTE, lw=0.9, ls=(0,(4,3)), alpha=0.7, zorder=0))
+
+    fig.savefig("charts/chartD_ladder.png", facecolor=PANEL, dpi=220)
+    plt.close(fig)
 
 if __name__ == "__main__":
     chart_subsidy()
