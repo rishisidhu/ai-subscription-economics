@@ -107,20 +107,21 @@ CROSSOVER = {
 # ---------------------------------------------------------------------------
 # CHART C — Cheaper tokens, bigger bills (REAL ENDPOINTS, no invented curve)
 # Drawn as two honest before/after points per series, NOT a smooth interpolation,
-# because no public monthly time-series exists. The four numbers below are real:
+# because no public monthly time-series exists. All four numbers are real:
 #
 # Token price (GPT-3.5-equivalent inference, per 1M tokens):
 #   $20.00 (Nov 2022) -> $0.07 (Oct 2024) = ~280x drop.
-#   Source: Stanford HAI AI Index 2025 (via searchenginejournal.com, medium.com/@horecny).
-# Enterprise AI budget (average, per year):
-#   $1.2M (2024) -> $7M (2026) = ~5.8x rise.
-#   Source: FinOps Foundation 2026 State of FinOps (via oplexa.com).
-# Headline framing "280x down / 320% up over two years": oplexa.com.
+#   Source: Stanford HAI AI Index 2025, Ch.1 (Research & Development).
+#   hai.stanford.edu/ai-index/2025-ai-index-report/research-and-development
+# Total enterprise generative-AI spend (market-wide, per year):
+#   $11.5B (2024) -> $37B (2025) = 3.2x rise.
+#   Source: Menlo Ventures, "2025: The State of Generative AI in the Enterprise"
+#   menlovc.com/perspective/2025-the-state-of-generative-ai-in-the-enterprise
 DIVERGENCE = {
     "price_start": 20.00, "price_start_label": "Nov 2022",
     "price_end":   0.07,  "price_end_label":   "Oct 2024",
-    "spend_start": 1.2,   "spend_start_label": "2024",   # $M/yr
-    "spend_end":   7.0,   "spend_end_label":   "2026",   # $M/yr
+    "spend_start": 11.5,  "spend_start_label": "2024",   # $B, enterprise GenAI spend
+    "spend_end":   37.0,  "spend_end_label":   "2025",   # $B
 }
 
 # ---------------------------------------------------------------------------

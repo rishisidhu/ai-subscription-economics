@@ -174,7 +174,7 @@ def chart_divergence():
     hax.add_patch(plt.Rectangle((0,0),1,1, transform=hax.transAxes, color=HEADER, zorder=0))
     hax.text(0.018, 0.62, "CHEAPER TOKENS, BIGGER BILLS", transform=hax.transAxes,
              ha="left", va="center", color=HEADERTX, fontsize=15, fontweight="bold", family=DISPLAY)
-    hax.text(0.018, 0.24, "Unit price fell sharply while total spend rose, over the same two years",
+    hax.text(0.018, 0.24, "Unit price collapsed while total enterprise spending climbed",
              transform=hax.transAxes, ha="left", va="center", color=SUB, fontsize=10.5)
 
     axL = fig.add_axes([0.08, 0.18, 0.38, 0.60])
@@ -204,14 +204,14 @@ def chart_divergence():
     axR.plot([0,1], [d["spend_start"], d["spend_end"]], color=CORAL, lw=3,
              marker="o", markersize=9, zorder=5)
     axR.set_xticklabels([d["spend_start_label"], d["spend_end_label"]], color=TXT)
-    axR.annotate(f"${d['spend_start']:.1f}M", (0, d["spend_start"]), xytext=(-4,16),
+    axR.annotate(f"${d['spend_start']:.1f}B", (0, d["spend_start"]), xytext=(-4,16),
                  textcoords="offset points", ha="right", fontsize=12, fontweight="bold", color=INK)
-    axR.annotate(f"${d['spend_end']:.0f}M", (1, d["spend_end"]), xytext=(0,12),
+    axR.annotate(f"${d['spend_end']:.0f}B", (1, d["spend_end"]), xytext=(0,12),
                  textcoords="offset points", ha="center", fontsize=12, fontweight="bold", color=INK)
     axR.set_ylim(0, d["spend_end"]*1.2)
-    axR.text(0.22, 0.68, "≈ 6×\nhigher", transform=axR.transAxes, ha="center",
+    axR.text(0.22, 0.68, "≈ 3×\nhigher", transform=axR.transAxes, ha="center",
              va="center", fontsize=13, color=MUTE, fontweight="bold")
-    axR.set_title("Avg enterprise AI budget per year", fontsize=11, color=TXT, pad=24)
+    axR.set_title("Total enterprise spend on generative AI", fontsize=11, color=TXT, pad=24)
 
     _save(fig, "charts/chartC_divergence.png")
 
