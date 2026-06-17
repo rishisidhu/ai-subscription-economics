@@ -76,14 +76,31 @@ SUBSIDY = [
 SUBSIDY_OBSERVED = ("Max 20x\n$200", 1588)
 
 # ---------------------------------------------------------------------------
-# CHART B — Crossover for a single subscriber (COMPUTED, unchanged method)
-# Computed from Sonnet 4.6 published rate ($3/$15 per 1M tokens) with a stated
-# per-interaction token model. Break-even ~1,300 interactions/mo for flat $20.
+# CHART B — Crossover for a single subscriber (COMPUTED).
+# Models one AGENT INTERACTION with prompt caching, priced at Sonnet 4.6.
+#
+# DEFINITION OF AN "INTERACTION": one agent turn. The agent resends the growing
+# conversation as context, the model responds, the agent acts on it. This is the
+# unit that loops dozens of times to complete a single task.
+#
+# PER-INTERACTION TOKEN MODEL (with prompt caching, same basis as Chart A):
+#   cached_context  12,000 tokens  billed at cache-read 0.1x input
+#   fresh_input      1,500 tokens  billed at full input
+#   cache_write      1,500 tokens  billed at 1.25x input
+#   output             700 tokens  billed at full output
+# Rates: Sonnet 4.6 $3 input / $15 output per 1M tokens (Anthropic pricing page).
+#   -> cost/interaction ~= $0.0242  -> break-even ~826 interactions/mo vs flat $20.
+# (Without caching the same agent turn costs ~$0.051 and breaks even at ~390; caching
+#  RAISES the break-even. We model the cheaper, caching case to stay conservative.)
 CROSSOVER = {
-    "in_tokens_per_task": 1500,
-    "out_tokens_per_task": 700,
+    "cached_tokens": 12000,
+    "fresh_in_tokens": 1500,
+    "cache_write_tokens": 1500,
+    "out_tokens": 700,
     "in_rate_per_token": 3 / 1e6,
     "out_rate_per_token": 15 / 1e6,
+    "cache_read_rate_per_token": 0.30 / 1e6,   # 0.1x input
+    "cache_write_rate_per_token": 3.75 / 1e6,  # 1.25x input
     "flat_revenue": 20.0,
 }
 

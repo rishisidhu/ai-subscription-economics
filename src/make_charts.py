@@ -126,15 +126,18 @@ def chart_subsidy():
 # ===========================================================================
 def chart_crossover():
     c = D.CROSSOVER
-    cpt = (c["in_tokens_per_task"]*c["in_rate_per_token"]
-           + c["out_tokens_per_task"]*c["out_rate_per_token"])
+    # cost per interaction = cached context (0.1x) + fresh input + cache write (1.25x) + output
+    cpt = (c["cached_tokens"]      * c["cache_read_rate_per_token"]
+           + c["fresh_in_tokens"]  * c["in_rate_per_token"]
+           + c["cache_write_tokens"] * c["cache_write_rate_per_token"]
+           + c["out_tokens"]       * c["out_rate_per_token"])
     REV = c["flat_revenue"]
     be = REV / cpt
     x = np.linspace(0, 3000, 240)
     cost = x * cpt
 
     fig, ax, _ = _frame("Where a flat subscriber turns unprofitable",
-                        "Computed from published Sonnet API rates: cost rises with use, the $20 fee does not",
+                        "One agent interaction, priced at Sonnet rates with caching: cost rises with use, the $20 fee does not",
                         "USD / MONTH")
     ax.grid(True, color=GRID, lw=1)
 
@@ -145,19 +148,18 @@ def chart_crossover():
     ax.axvline(be, color=MUTE, lw=1, ls=(0, (3, 3)), zorder=3)
 
     ax.annotate(f"break-even ≈ {int(round(be,-1)):,} interactions",
-                xy=(be, REV), xytext=(be+70, 7.5), fontsize=10.5, color=INK,
+                xy=(be, REV), xytext=(be+50, 6.5), fontsize=10.5, color=INK,
                 arrowprops=dict(arrowstyle="-", color=MUTE, lw=1))
-    ax.text(70, REV+1.6, "flat revenue  $20", fontsize=11, color=TEALD)
-    ax.text(2950, cost[-1]*0.80, "cost to serve", ha="right", fontsize=12,
-            color=INK)
-    ax.text(2150, REV + (cost[-1]-REV)*0.18, "every interaction past\nbreak-even loses money",
+    ax.text(50, REV+1.6, "flat revenue  $20", fontsize=11, color=TEALD)
+    ax.text(1680, 30, "cost to serve", ha="center", fontsize=12, color=INK)
+    ax.text(1450, 24, "every interaction past\nbreak-even loses money",
             fontsize=11, color=CORALD, ha="center")
 
-    ax.set_xlim(0, 3000); ax.set_ylim(0, 46)
+    ax.set_xlim(0, 2000); ax.set_ylim(0, 46)
     ax.xaxis.set_major_locator(MultipleLocator(500))
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{int(v):,}"))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"${int(v)}"))
-    ax.set_xlabel("Model interactions per month (chat messages, or agent steps)",
+    ax.set_xlabel("Agent interactions per month (one resend-and-respond turn each)",
                   fontsize=10.5, color=TXT)
     _save(fig, "charts/chartB_crossover.png")
     return cpt, be
